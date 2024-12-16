@@ -1,4 +1,4 @@
-﻿hetzerize/.vs
-hetzerize/bin
-hetzerize/obj
+﻿.vs
+bin
+tmp
 *.user

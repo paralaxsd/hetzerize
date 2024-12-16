@@ -2,17 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <RootNamespace>Hetzerize</RootNamespace>
-
-    <!-- 
-    Do not append target fw name to output:
-    https://docs.microsoft.com/en-us/visualstudio/ide/how-to-change-the-build-output-directory
-    -->
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-
   </PropertyGroup>
 
   <ItemGroup>
