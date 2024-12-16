@@ -1,0 +1,78 @@
+name: Make Release
+on: 
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name (e.g., v1.0.0)'
+        required: true
+      release_body:
+        description: 'Description of the release'
+        required: false
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: 'false'
+
+# Add these crucial permissions
+permissions:
+  contents: write
+
+jobs:
+  publish-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nuke/temp
+            ~/.nuget/packages
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
+
+      - name: 'Run: PublishAll'
+        run: ./build.cmd PublishAll
+
+      - name: Compress Linux Artifacts
+        run: |
+          mkdir -p ./release-assets
+          tar -czvf ./release-assets/linux-artifact.tar.gz -C artifacts/linux .
+
+      - name: Compress Windows Artifacts
+        run: |
+          zip -r ./release-assets/win-artifact.zip artifacts/win
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.release_name }}
+          release_name: ${{ github.event.inputs.release_name }}
+          body: ${{ github.event.inputs.release_body }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+
+      - name: Upload Linux Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release-assets/linux-artifact.tar.gz
+          asset_name: linux-artifact.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release-assets/win-artifact.zip
+          asset_name: win-artifact.zip
+          asset_content_type: application/zip

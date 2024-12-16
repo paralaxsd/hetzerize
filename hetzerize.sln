@@ -21,6 +21,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".config", ".config", "{02EA
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "hetzerize.build", "build\hetzerize.build.csproj", "{A381FBF3-E996-4B54-B9C8-967517E887B9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{E67E5857-7E90-407B-ABF8-D8EEB3701808}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\compile.yml = .github\workflows\compile.yml
+		.github\workflows\make-release.yml = .github\workflows\make-release.yml
+		.github\workflows\publish-all.yml = .github\workflows\publish-all.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,9 +43,6 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {296DF155-CCBC-4CEA-B08E-DD68695F5D2A}
