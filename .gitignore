@@ -1,4 +1,7 @@
 ﻿.vs
-bin
-tmp
+**/bin
+**/obj
+**/tmp
 *.user
+artifacts
+.nuke/temp

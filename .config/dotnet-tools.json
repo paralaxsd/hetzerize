@@ -8,6 +8,13 @@
         "nbgv"
       ],
       "rollForward": false
+    },
+    "nuke.globaltool": {
+      "version": "9.0.3",
+      "commands": [
+        "nuke"
+      ],
+      "rollForward": false
     }
   }
 }

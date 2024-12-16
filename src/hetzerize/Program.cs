@@ -15,5 +15,5 @@ static class Program
         app.Run(args);
     }
 
-    static void LogErrorAsMarkup(string text) => AnsiConsole.MarkupLine($"[red]{text}[/]");
+    static void LogErrorAsMarkup(string text) => AnsiConsole.MarkupLine($":skull: [red]{text}[/]");
 }
