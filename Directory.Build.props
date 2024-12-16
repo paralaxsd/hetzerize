@@ -2,29 +2,29 @@
 What's this? See e.g.:
 https://thomaslevesque.com/2017/09/18/common-msbuild-properties-and-items-with-directory-build-props/
 -->
-
 <Project>
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
     <!-- 
     Do not append target fw name to output:
     https://docs.microsoft.com/en-us/visualstudio/ide/how-to-change-the-build-output-directory
     -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-
     <!-- Redirect tmp files: https://github.com/dotnet/msbuild/issues/1603#issuecomment-341116396 -->
     <BaseIntermediateOutputPath>$(SolutionDir)tmp\$(Configuration)\$(MSBuildProjectName)\$(HostingFramework)\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(SolutionDir)tmp\$(Configuration)\$(MSBuildProjectName)\$(HostingFramework)\</IntermediateOutputPath>
     <MSBuildProjectExtensionsPath>$(IntermediateOutputPath)</MSBuildProjectExtensionsPath>
     <OutputPath>$(SolutionDir)bin\$(Configuration)\</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
-
     <!--https://github.com/dotnet/project-system/blob/main/docs/build-acceleration.md-->
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
   </PropertyGroup>
-
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" Condition="!Exists('packages.config')">
+      <PrivateAssets>all</PrivateAssets>
+      <Version>3.7.112</Version>
+    </PackageReference>
+  </ItemGroup>
 </Project>
