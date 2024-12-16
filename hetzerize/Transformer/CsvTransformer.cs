@@ -1,6 +1,10 @@
-﻿namespace Hetzerize.Transformer;
+﻿using Hetzerize.Csv;
+using System.ComponentModel.DataAnnotations;
+using Spectre.Console;
 
-class CsvTransformer(TransformerInputs inputs)
+namespace Hetzerize.Transformer;
+
+sealed class CsvTransformer(TransformerInputs inputs)
 {
     /******************************************************************************************
      * FIELDS
@@ -9,48 +13,89 @@ class CsvTransformer(TransformerInputs inputs)
     readonly string _srcDelim = inputs.SrcDelim;
     readonly string _trgDelim = inputs.TrgDelim;
     readonly bool _force = inputs.Force;
+    readonly bool _verbose = inputs.Verbose;
+
+    string? _outputPath = inputs.OutputPath;
 
     /******************************************************************************************
      * PROPERTIES
      * ***************************************************************************************/
-    FileInfo OutputPath => CreateOutputPath();
+    FileInfo OutputFile => new(_outputPath ??= CreateDefaultOutputPath());
 
     /******************************************************************************************
      * METHODS
      * ***************************************************************************************/
-    public int Execute()
+    public void Execute()
     {
-        if(!_csvFile.Exists)
+        EnsurePreconditionsAreMet();
+
+        try
         {
-            throw new FileNotFoundException($"File '{_csvFile.FullName}' not found.");
+            var csvDoc = ReadCsvDocument();
+            PerformTransformationsOn(csvDoc);
+            WriteTransformedCsvDocument(csvDoc);
+
+            AnsiConsole.MarkupLine($":check_mark_button: [green]Output written to [teal link]{OutputFile.FullName}[/].[/]");
         }
-        if(OutputPath.Exists && !_force)
+        catch (Exception e)
         {
-            throw new ArgumentException($"The output file '{OutputPath.FullName}' already exists. Use --force to overwrite it.");
+            var errorMsg = _verbose ? e.ToString() : e.Message;
+            AnsiConsole.MarkupLine($":skull: [red]Transforming input data failed: {errorMsg }[/]");
+        }
+    }
+
+    void EnsurePreconditionsAreMet()
+    {
+        if (!_csvFile.Exists)
+        {
+            throw new ValidationException($"File '{_csvFile.FullName}' not found.");
         }
 
-        var csvDoc = ReadCsvDocument();
-
-        return 0;
+        if (OutputFile.Exists)
+        {
+            if(_force)
+            {
+                if(_verbose)
+                {
+                    AnsiConsole.MarkupLine($"[cyan]Overwriting {OutputFile.Name} as per user request.[/]");
+                }
+            }
+            else
+            {
+                throw new ValidationException($"The output file '{OutputFile.FullName}' " + 
+                    $"already exists. Use --force to overwrite it.");
+            }
+        }
     }
 
     CsvDocument ReadCsvDocument()
     {
-        var csvReader = new CsvReader()
-        {
-            Delimiter = _srcDelim
-        };
         using var streamReader = _csvFile.OpenText();
-        return csvReader.ReadFrom(streamReader);
+        return new CsvReader(_srcDelim).ReadFrom(streamReader);
     }
 
-    FileInfo CreateOutputPath()
+    void WriteTransformedCsvDocument(CsvDocument csvDoc)
+    {
+        var csvWriter = new CsvWriter(_trgDelim);
+        using var streamWriter = OutputFile.CreateText();
+        csvWriter.WriteTo(streamWriter, csvDoc);
+    }
+
+    string CreateDefaultOutputPath()
     {
         var now = DateTime.Now;
         var prefix = $"{now.Year % 1000}{now.Month:D2}{now.Day:D2}";
         var filename = $"{prefix}_statement.csv";
 
-        var outputPath = Path.Join(_csvFile.Directory!.FullName, filename);
-        return new(outputPath);
+        return Path.Join(_csvFile.Directory!.FullName, filename);
     }
+
+    static void PerformTransformationsOn(CsvDocument csvDoc)
+    {
+        csvDoc.GetEntriesInColumn("Amount (EUR)").Apply(ReplaceDotWithComma);
+        csvDoc.GetEntriesInColumn("Original Amount").Apply(ReplaceDotWithComma);
+    }
+
+    static void ReplaceDotWithComma(CsvEntry entry) =>
+        entry.Value = entry.Value.Replace('.', ',');
 }

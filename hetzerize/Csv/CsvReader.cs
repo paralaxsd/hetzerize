@@ -1,11 +1,11 @@
-﻿namespace Hetzerize.Transformer;
+﻿namespace Hetzerize.Csv;
 
-sealed class CsvReader
+sealed class CsvReader(string delimiter = ";")
 {
     /******************************************************************************************
-     * props
+     * FIELDS
      * ***************************************************************************************/
-    public string Delimiter { get; init; } = ",";
+    readonly string _delimiter = delimiter;
 
     /******************************************************************************************
      * METHODS
@@ -14,16 +14,16 @@ sealed class CsvReader
     {
         var lines = ReadLinesFrom(reader);
 
-        if(lines.Count == 0)
+        if (lines.Count == 0)
         {
             throw new ArgumentException("The given CSV file has no readable content.");
         }
-        
+
         var csvLines = lines.Select(CreateCsvLineFrom).ToArray();
         var csvHeader = csvLines[0];
         var numColumns = csvHeader.NumEntries;
 
-        if(csvLines.Any(line => line.NumEntries != numColumns))
+        if (csvLines.Any(line => line.NumEntries != numColumns))
         {
             throw new InvalidDataException("Invalid data: the given CSV data has varying entries per line.");
         }
@@ -33,7 +33,7 @@ sealed class CsvReader
 
     CsvLine CreateCsvLineFrom(string line, int lineIdx)
     {
-        var entries = line.Split(Delimiter);
+        var entries = line.Split(_delimiter);
         var csvEntries = entries.Select((val, idx) => new CsvEntry(idx, val));
 
         return new(lineIdx, csvEntries.ToArray());
