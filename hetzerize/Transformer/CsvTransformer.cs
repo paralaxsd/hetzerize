@@ -17,6 +17,20 @@ sealed class CsvTransformer(TransformerInputs inputs)
 
     string? _outputPath = inputs.OutputPath;
 
+    const string Banner = 
+        """
+            )
+         ( /(           )
+         )\())   (   ( /(       (   (   (         (
+        ((_)\   ))\  )\())(    ))\  )(  )\  (    ))\
+         _((_) /((_)(_))/ )\  /((_)(()\((_) )\  /((_)
+        | || |(_))  | |_ ((_)(_))   ((_)(_)((_)(_))
+        | __ |/ -_) |  _||_ // -_) | '_|| ||_ // -_)
+        |_||_|\___|  \__|/__|\___| |_|  |_|/__|\___|
+                          
+        """;
+
+
     /******************************************************************************************
      * PROPERTIES
      * ***************************************************************************************/
@@ -27,6 +41,7 @@ sealed class CsvTransformer(TransformerInputs inputs)
      * ***************************************************************************************/
     public void Execute()
     {
+        PrintBanner();
         EnsurePreconditionsAreMet();
 
         try
@@ -43,6 +58,8 @@ sealed class CsvTransformer(TransformerInputs inputs)
             AnsiConsole.MarkupLine($":skull: [red]Transforming input data failed: {errorMsg }[/]");
         }
     }
+
+    static void PrintBanner() => AnsiConsole.MarkupLine($"[yellow]{Banner}[/]");
 
     void EnsurePreconditionsAreMet()
     {
