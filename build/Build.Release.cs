@@ -1,25 +1,27 @@
-﻿using Nuke.Common.Tools.GitHub;
+﻿using Extensions;
+using Nuke.Common.CI.GitHubActions;
+using Nuke.Common.Git;
+using Nuke.Common.Tools.GitHub;
 using Octokit;
 using Serilog;
+
+using static Octokit.AuthenticationType;
 
 partial class Build
 {
     /******************************************************************************************
      * FIELDS
      * ***************************************************************************************/
-    [Parameter("The GitHub repo owner's user name for tokenless basic authentication")]
-    readonly string? GithubLogin;
+    [Secret, Parameter("The GitHub repo owner's token for authentication without a GITHUB_TOKEN.")]
+    readonly string? GithubToken;
 
-    [Parameter("The GitHub repo owner's password for tokenless basic authentication"), Secret]
-    readonly string? GithubPassword;
-
+    [GitRepository] readonly GitRepository GitRepository = null!;
 
     /******************************************************************************************
      * PROPERTIES
      * ***************************************************************************************/
     public Target CreateRelease => t => t
-        //.DependsOn(PublishAll)
-        //.DependsOn(Restore)
+        .DependsOn(PublishAll)
         .Executes(CreateNewRelease);
 
     /******************************************************************************************
@@ -29,31 +31,35 @@ partial class Build
     {
         var client = GetGitHubClient();
 
+        var thisRepo = await client.GetCurrentRepoFromAsync(GitRepository);
+        const string tagName = ThisAssembly.AssemblyInformationalVersion;
 
-        var repoClient = client.Repository;
-        var repo = await repoClient.Get("paralaxsd", "hetzerize");
-        var tagName = ThisAssembly.AssemblyFileVersion;
-        tagName = "v1.0.5-beta";
-
-        //CreateArtifacts(tag);
-        var newRelease = await CreateReleaseAsync(client, repo, tagName);
-        await CreateRelaseAsync(newRelease, repoClient, repo);
+        CreateArtifacts(tagName);
+        await CreateReleaseFromAsync(client, thisRepo, tagName);
     }
 
     GitHubClient GetGitHubClient()
     {
         var client = GitHubTasks.GitHubClient;
-        if(client.Credentials == null || client.Credentials.AuthenticationType == AuthenticationType.Anonymous)
+        var credentials = client.Credentials;
+        if (credentials == null || credentials.AuthenticationType == Anonymous)
         {
-            // Can we use basic auth?
-            // As seen at https://octokitnet.readthedocs.io/en/documentation/getting-started/#authenticated-access
-            if(GithubLogin is { } login && GithubPassword is { } password)
+            var githubAction = GitHubActions.Instance;
+
+            if (GithubToken is { } token)
             {
-                client.Credentials = new Credentials(login, password);
+                Information("Using user provided Github token for authentication.");
+                client.Credentials = new(token);
+            }
+            else if(!string.IsNullOrWhiteSpace(githubAction.Token))
+            {
+                Information("Using action provided GITHUB_TOKEN for authentication.");
+                client.Credentials = new(githubAction.Token);
             }
             else
             {
-                Assert.Fail("Client credentials are missing. Either provide a GITHUB_TOKEN or login+password for the repo owner.");
+                Assert.Fail("Client credentials are missing. " + 
+                    "Either provide a GITHUB_TOKEN or an auth token with appropriate permissions.");
             }
         }
 
@@ -66,69 +72,53 @@ partial class Build
         Platform.All.Apply(platform => CreateCompressedArtifactsFor(platform, tag));
     }
 
-    async Task<NewRelease> CreateReleaseAsync(GitHubClient client, Repository repo, string tagName)
+    async Task CreateReleaseFromAsync(GitHubClient client, Repository repo, string tagName)
+    {
+        var newRelease = await CreateNewReleaseObjAsync(client, repo, tagName);
+
+        var releaseClient = client.Repository.Release;
+        var release = await releaseClient.Create(repo.Id, newRelease);
+
+        await AttachArtifactsToAsync(release, releaseClient);
+    }
+
+    async Task<NewRelease> CreateNewReleaseObjAsync(GitHubClient client, Repository repo, string tagName)
     {
         Information("Creating release...");
         var repoClient = client.Repository;
         var releaseCommits = await GetCommitsForReleaseAsync(repoClient, repo);
+        var latestCommit = releaseCommits.First();
         if (releaseCommits.Count == 0)
         {
-            throw new InvalidOperationException(
+            Assert.Fail(
                 "Cannot create a new release: there are no new commits since the last release.");
         }
-        var body = CreateReleaseBodyFrom(releaseCommits);
-        var latestCommit = releaseCommits.First();
-        GitTag tag;
-        var tagsClient = client.Git.Tag;
-        try
-        {
-            tag = await tagsClient.Get(repo.Id, tagName);
-        }
-        catch (NotFoundException)
-        {
-            var commitAuthor = latestCommit.Commit.Author;
-            Console.WriteLine($"Tag name: {tagName}");
-            Console.WriteLine($"Commit SHA: {latestCommit.Sha}");
-            Console.WriteLine($"Author name: {commitAuthor.Name}");
-            Console.WriteLine($"Author email: {commitAuthor.Email}");
 
-            var newTag = new NewTag()
-            {
-                Message = tagName,
-                Tag = tagName,
-                Object = latestCommit.Sha,
-                Type = TaggedType.Commit,
-                Tagger = new(commitAuthor.Name, commitAuthor.Email, DateTimeOffset.UtcNow)
-            };
-            tag = await tagsClient.Create("paralaxsd", "hetzerize", newTag);
+        var body = CreateChangelogTextFrom(releaseCommits);
+        var tag = await client.FindTagInAsync(repo, tagName) ??
+                  await client.CreateNewTagAsync(repo, latestCommit, tagName);
 
-            // Create the reference to make the tag visible
-            var newRef = new NewReference($"refs/tags/{tagName}", tag.Sha);
-            await client.Git.Reference.Create(repo.Id, newRef);
-        }
-    
         return new(tagName)
         {
             Body = body,
             Name = tagName,
-            TargetCommitish = latestCommit.Sha,  // Changed this to use commit SHA instead of tag
+            TargetCommitish = tag.Object.Sha
         };
     }
 
-    async Task CreateRelaseAsync(
-        NewRelease newRelease, IRepositoriesClient repoClient, Repository repo)
+    async Task AttachArtifactsToAsync(Release release, IReleasesClient releaseClient)
     {
-        var releaseClient = repoClient.Release;
-        var release = await releaseClient.Create(repo.Id, newRelease);
         var artifactPaths = ArtifactsDirectory
-            .GlobFiles("*.zip", "*.tar,gz").OrderBy(p => p);
+            .GlobFiles("*.zip", "*.tar.gz")
+            .OrderBy(p => (string)p)
+            .ToArray();
 
-        foreach(var path in artifactPaths)
+        foreach (var path in artifactPaths)
         {
             Information($"Uploading {path.Name}...");
 
             await using var stream = File.OpenRead(path);
-            var upload = new ReleaseAssetUpload(path, "application/zip", stream, null);
+            var upload = new ReleaseAssetUpload(path.Name, "application/zip", stream, null);
             await releaseClient.UploadAsset(release, upload);
         }
     }
@@ -146,9 +136,9 @@ partial class Build
     async Task<IReadOnlyList<GitHubCommit>> GetCommitsForReleaseAsync(IRepositoriesClient repoClient, Repository repo)
     {
         var repoId = repo.Id;
-        var mainBranch = await repoClient.Branch.Get(repoId, repo.DefaultBranch);
-
-        var allCommits = await repoClient.Commit.GetAll(repoId, new CommitRequest() { Sha = mainBranch.Commit.Sha });
+        var defaultBranch = await repoClient.Branch.Get(repoId, repo.DefaultBranch);
+        var defaultBranchOnly = new CommitRequest { Sha = defaultBranch.Commit.Sha };
+        var allCommits = await repoClient.Commit.GetAll(repoId, defaultBranchOnly);
 
         try
         {
@@ -161,12 +151,11 @@ partial class Build
         }
     }
 
-    static string CreateReleaseBodyFrom(IReadOnlyList<GitHubCommit> releaseCommits)
+    static string CreateChangelogTextFrom(IReadOnlyList<GitHubCommit> releaseCommits)
     {
-        var title = $"## Changelog:  {Environment.NewLine}";
         var commits = releaseCommits.Select(CreateChangelogLineFrom)
             .JoinedBy($"  {Environment.NewLine}");
-        return title + commits;
+        return $"## Changelog:  {Environment.NewLine}{commits}";
     }
 
     static string CreateChangelogLineFrom(GitHubCommit comm) =>

@@ -112,11 +112,7 @@
             "Release"
           ]
         },
-        "GithubLogin": {
-          "type": "string",
-          "description": "The GitHub repo owner's user name for tokenless basic authentication"
-        },
-        "GithubPassword": {
+        "GithubToken": {
           "type": "string",
           "description": "The GitHub repo owner's password for tokenless basic authentication",
           "default": "Secrets must be entered via 'nuke :secrets [profile]'"

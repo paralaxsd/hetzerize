@@ -1,21 +1,23 @@
 using Nuke.Common.CI.GitHubActions;
 using Nuke.Common.ProjectModel;
-using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 // ReSharper disable UnusedMember.Local
 
 [GitHubActions("compile", GitHubActionsImage.UbuntuLatest,
     On = [GitHubActionsTrigger.Push],
-    Progress = true,
     FetchDepth = 0,
     InvokedTargets = [nameof(Compile)])]
 [GitHubActions("publish-all", GitHubActionsImage.UbuntuLatest,
     On = [GitHubActionsTrigger.WorkflowDispatch],
-    Progress = true,
     FetchDepth = 0,
     PublishArtifacts = true,
     InvokedTargets = [nameof(PublishAll)])]
+[GitHubActions("create-release", GitHubActionsImage.UbuntuLatest,
+    On = [GitHubActionsTrigger.WorkflowDispatch],
+    FetchDepth = 0,
+    InvokedTargets = [nameof(CreateRelease)],
+    EnableGitHubToken = true)]
 partial class Build : NukeBuild
 {
     /******************************************************************************************
@@ -82,8 +84,6 @@ partial class Build : NukeBuild
     
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath SourceDirectory => RootDirectory / "src";
-
-    static Tool NerdBankGitVersioning => ToolResolver.GetPathTool("nbgv");
 
     /******************************************************************************************
      * METHODS

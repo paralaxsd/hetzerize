@@ -9,14 +9,14 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_compile --host GitHubActions
+#         nuke --generate-configuration GitHubActions_create-release --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: compile
+name: create-release
 
-on: [push]
+on: [workflow_dispatch]
 
 jobs:
   ubuntu-latest:
@@ -33,5 +33,12 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
-      - name: 'Run: Compile'
-        run: ./build.cmd Compile
+      - name: 'Run: CreateRelease'
+        run: ./build.cmd CreateRelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Publish: artifacts'
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: artifacts
