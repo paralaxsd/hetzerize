@@ -12,6 +12,9 @@ https://thomaslevesque.com/2017/09/18/common-msbuild-properties-and-items-with-d
     https://docs.microsoft.com/en-us/visualstudio/ide/how-to-change-the-build-output-directory
     -->
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- SolutionDir is not defined when building projects explicitly -->
+    <SolutionDir Condition=" '$(SolutionDir)' == '' ">$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), hetzerize.sln))\</SolutionDir>
     <!-- Redirect tmp files: https://github.com/dotnet/msbuild/issues/1603#issuecomment-341116396 -->
     <BaseIntermediateOutputPath>$(SolutionDir)tmp\$(Configuration)\$(MSBuildProjectName)\$(HostingFramework)\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(SolutionDir)tmp\$(Configuration)\$(MSBuildProjectName)\$(HostingFramework)\</IntermediateOutputPath>

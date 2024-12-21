@@ -22,20 +22,43 @@ partial class Build
      * ***************************************************************************************/
     public Target CreateRelease => t => t
         .DependsOn(PublishAll)
-        .Executes(CreateNewRelease);
+        .Executes(CreateNewReleaseAsync);
 
     /******************************************************************************************
      * METHODS
      * ***************************************************************************************/
-    async Task CreateNewRelease()
+    async Task CreateNewReleaseAsync()
+    {
+        const string releaseTag = ThisAssembly.AssemblyInformationalVersion;
+
+        CreateArtifacts(releaseTag);
+        await CreateReleaseTaggedAsAsync(releaseTag);
+    }
+
+    void CreateArtifacts(string tag)
+    {
+        Information("Creating artifacts...");
+        Platform.All.Apply(platform => CreateCompressedArtifactsFor(platform, tag));
+    }
+
+    async Task CreateReleaseTaggedAsAsync(string tagName)
     {
         var client = GetGitHubClient();
+        var repo = await client.GetCurrentRepoFromAsync(GitRepository);
+        var releaseClient = client.Repository.Release;
+        
+        var newRelease = await CreateNewReleaseObjAsync(client, repo, tagName);
+        var release = await releaseClient.Create(repo.Id, newRelease);
 
-        var thisRepo = await client.GetCurrentRepoFromAsync(GitRepository);
-        const string tagName = ThisAssembly.AssemblyInformationalVersion;
+        await AttachArtifactsToAsync(release, releaseClient);
+    }
 
-        CreateArtifacts(tagName);
-        await CreateReleaseFromAsync(client, thisRepo, tagName);
+    void CreateCompressedArtifactsFor(Platform platform, string tag)
+    {
+        var ext = platform == Platform.Windows ? "zip" : "tar.gz";
+
+        (ArtifactsDirectory / platform)
+            .CompressTo(ArtifactsDirectory / $"hetzerize-{tag}-{platform}-x64.{ext}");
     }
 
     GitHubClient GetGitHubClient()
@@ -66,21 +89,6 @@ partial class Build
         return client;
     }
 
-    void CreateArtifacts(string tag)
-    {
-        Information("Creating artifacts...");
-        Platform.All.Apply(platform => CreateCompressedArtifactsFor(platform, tag));
-    }
-
-    async Task CreateReleaseFromAsync(GitHubClient client, Repository repo, string tagName)
-    {
-        var newRelease = await CreateNewReleaseObjAsync(client, repo, tagName);
-
-        var releaseClient = client.Repository.Release;
-        var release = await releaseClient.Create(repo.Id, newRelease);
-
-        await AttachArtifactsToAsync(release, releaseClient);
-    }
 
     async Task<NewRelease> CreateNewReleaseObjAsync(GitHubClient client, Repository repo, string tagName)
     {
@@ -124,15 +132,7 @@ partial class Build
     }
 
     void Information(string text) => Log.Information(text);
-
-    void CreateCompressedArtifactsFor(Platform platform, string tag)
-    {
-        var ext = platform == Platform.Windows ? "zip" : "tar.gz";
-
-        (ArtifactsDirectory / platform)
-            .CompressTo(ArtifactsDirectory / $"hetzerize-{tag}-{platform}-x64.{ext}");
-    }
-
+    
     async Task<IReadOnlyList<GitHubCommit>> GetCommitsForReleaseAsync(IRepositoriesClient repoClient, Repository repo)
     {
         var repoId = repo.Id;

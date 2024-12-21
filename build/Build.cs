@@ -35,32 +35,24 @@ partial class Build : NukeBuild
      * PROPERTIES
      * ***************************************************************************************/
     public Target Clean => t => t
+        .Description("Cleans the solution and erases temp + the artifact directory.")
         .Before(Compile)
         .Before(Publish)
         .Before(Restore)
-        .Executes(() =>
-        {
-            DotNetClean(s => s.SetProject(Solution.hetzerize.Path));
-            RootDirectory.GlobDirectories("bin", "tmp").ForEach(p => p.DeleteDirectory());
-            SourceDirectory.GlobDirectories("**/bin", "**/tmp", "**/obj").ForEach(p => p.DeleteDirectory());
-            ArtifactsDirectory.DeleteDirectory();
-        });
+        .Executes(CleanSolution);
 
     public Target Compile => t => t
+        .Description("Builds the application.")
         .DependsOn(Restore)
-        .Executes(() =>
-        {
-            DotNetBuild(s => s
-                .SetProjectFile(Solution.Path)
-                .EnableDeterministic()
-                .SetConfiguration(Configuration));
-        });
+        .Executes(CompileApplication);
 
     public Target Recompile => t => t
+        .Description("Performs clean + compile at once.")
         .DependsOn(Clean)
         .DependsOn(Compile);
 
     public Target Publish => t => t
+        .Description("Publishes the application for the target platform.")
         .Produces(ArtifactsDirectory / "**.*")
         .Executes(() => PublishFor(PublishPlatform));
 
@@ -69,27 +61,43 @@ partial class Build : NukeBuild
         .Produces(ArtifactsDirectory / "**.*")
         .DependsOn(Clean)
         .DependsOn(Restore)
-        .Executes(() =>
-        {
-            ArtifactsDirectory.CreateOrCleanDirectory();
-            Platform.All.Apply(PublishFor);
-        });
+        .Executes(PublishForAllPlatforms);
 
     public Target Restore => t => t
-        .Executes(() =>
-        {
-            DotNetRestore(s => s.SetProjectFile(Solution.Path));
-            DotNetToolRestore();
-        });
-    
+        .Unlisted()
+        .Executes(RestoreSolution);
+
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath SourceDirectory => RootDirectory / "src";
 
     /******************************************************************************************
      * METHODS
      * ***************************************************************************************/
-    void PublishFor(Platform targetPlatform)
+    void CleanSolution()
     {
+        DotNetClean(s => s.SetProject(Solution.hetzerize.Path));
+        RootDirectory
+            .GlobDirectories("bin", "tmp")
+            .ForEach(p => p.DeleteDirectory());
+        SourceDirectory
+            .GlobDirectories("**/bin", "**/tmp", "**/obj")
+            .ForEach(p => p.DeleteDirectory());
+        ArtifactsDirectory.DeleteDirectory();
+    }
+
+    void CompileApplication() =>
+        DotNetBuild(s => s
+            .SetProjectFile(Solution.hetzerize.Path)
+            .EnableDeterministic()
+            .SetConfiguration(Configuration));
+
+    void PublishForAllPlatforms()
+    {
+        ArtifactsDirectory.CreateOrCleanDirectory();
+        Platform.All.Apply(PublishFor);
+    }
+
+    void PublishFor(Platform targetPlatform) =>
         DotNetPublish( s => s
             .SetProject(Solution.hetzerize)
             .EnableDeterministic()
@@ -97,6 +105,11 @@ partial class Build : NukeBuild
             .SetOperatingSystem(targetPlatform)
             .EnablePublishSingleFile()
             .AddProperty("PublishDir", ArtifactsDirectory / targetPlatform));
+
+    void RestoreSolution()
+    {
+        DotNetRestore(s => s.SetProjectFile(Solution.Path));
+        DotNetToolRestore();
     }
 
     public static int Main () => Execute<Build>(x => x.Compile);
