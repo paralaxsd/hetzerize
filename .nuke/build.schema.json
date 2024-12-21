@@ -114,7 +114,7 @@
         },
         "GithubToken": {
           "type": "string",
-          "description": "The GitHub repo owner's password for tokenless basic authentication",
+          "description": "The GitHub repo owner's token for authentication without a GITHUB_TOKEN",
           "default": "Secrets must be entered via 'nuke :secrets [profile]'"
         },
         "PublishPlatform": {

@@ -24,7 +24,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{E67E5857-7E90-407B-ABF8-D8EEB3701808}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\compile.yml = .github\workflows\compile.yml
-		.github\workflows\make-release.yml = .github\workflows\make-release.yml
+		.github\workflows\create-release.yml = .github\workflows\create-release.yml
 		.github\workflows\publish-all.yml = .github\workflows\publish-all.yml
 	EndProjectSection
 EndProject
