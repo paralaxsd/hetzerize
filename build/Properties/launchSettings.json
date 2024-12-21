@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "hetzerize.build": {
+      "commandName": "Project"
+    },
+    "create-release": {
+      "commandName": "Project",
+      "commandLineArgs": "create-release"
+    }
+  }
+}

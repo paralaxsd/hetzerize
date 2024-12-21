@@ -26,6 +26,7 @@
       "enum": [
         "Clean",
         "Compile",
+        "CreateRelease",
         "Publish",
         "PublishAll",
         "Recompile",
@@ -110,6 +111,15 @@
             "Debug",
             "Release"
           ]
+        },
+        "GithubLogin": {
+          "type": "string",
+          "description": "The GitHub repo owner's user name for tokenless basic authentication"
+        },
+        "GithubPassword": {
+          "type": "string",
+          "description": "The GitHub repo owner's password for tokenless basic authentication",
+          "default": "Secrets must be entered via 'nuke :secrets [profile]'"
         },
         "PublishPlatform": {
           "type": "string",

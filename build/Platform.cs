@@ -7,5 +7,7 @@ public class Platform : Enumeration
     public static Platform Windows = new() { Value = "win" };
     public static Platform Linux = new() { Value = "linux" };
 
+    public static IReadOnlyList<Platform> All => [Windows, Linux];
+
     public static implicit operator string(Platform platform) => platform.Value;
 }
