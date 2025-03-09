@@ -27,7 +27,7 @@ https://thomaslevesque.com/2017/09/18/common-msbuild-properties-and-items-with-d
   <ItemGroup>
     <PackageReference Include="Nerdbank.GitVersioning" Condition="!Exists('packages.config')">
       <PrivateAssets>all</PrivateAssets>
-      <Version>3.7.112</Version>
+      <Version>3.7.115</Version>
     </PackageReference>
   </ItemGroup>
 </Project>
