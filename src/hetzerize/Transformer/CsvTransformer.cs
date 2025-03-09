@@ -1,6 +1,9 @@
 ﻿using Hetzerize.Csv;
 using System.ComponentModel.DataAnnotations;
 using Spectre.Console;
+using Hetzerize.Extensions;
+using Hetzerize.Csv.Models;
+using Hetzerize.Transformer.DocumentTransformers;
 
 namespace Hetzerize.Transformer;
 
@@ -36,6 +39,30 @@ sealed class CsvTransformer(TransformerInputs inputs)
      * ***************************************************************************************/
     FileInfo OutputFile => new(_outputPath ??= CreateDefaultOutputPath());
 
+    IReadOnlyList<ICsvDocumentTransformer> DocTransformers {get;} =
+    [
+        // Replacements:
+        new GermanDateColumnTransformer("Booking Date", "Zahlungsdatum"),
+        new GermanDateColumnTransformer("Value Date", "Buchungsdatum"),
+        new RenameColumnTransformer("Partner Name", "Auftraggeber"),
+        new RenameColumnTransformer("Partner Iban", "IBAN"),
+        new RemoveColumnTransformer("Type"),
+        new RenameColumnTransformer("Payment Reference", "Verwendungszweck"),
+        new RemoveColumnTransformer("Account Name"),
+        new GermanNumberColumnTransformer("Amount (EUR)", "Betrag"),
+        new RemoveColumnTransformer("Original Amount"),
+        new RemoveColumnTransformer("Original Currency"),
+        new RemoveColumnTransformer("Exchange Rate"),
+        // Insertions:
+        new InsertConstantDataColumnTransformer("Belegnr", 2, "1"),
+        // Moves:
+        new MoveColumnTransformer("IBAN", 5),
+        new MoveColumnTransformer("Betrag", 3),
+        // Post-processing:
+        new UnquoteColumnTransformer("Auftraggeber"),
+        new UnquoteColumnTransformer("Verwendungszweck"),
+    ];
+
     /******************************************************************************************
      * METHODS
      * ***************************************************************************************/
@@ -54,12 +81,24 @@ sealed class CsvTransformer(TransformerInputs inputs)
         }
         catch (Exception e)
         {
-            var errorMsg = _verbose ? e.ToString() : e.Message;
-            AnsiConsole.MarkupLine($":skull: [red]Transforming input data failed: {errorMsg }[/]");
+            PrintException(e);
         }
     }
 
-    static void PrintBanner() => AnsiConsole.MarkupLine($"[yellow]{Banner}[/]");
+    void PrintException(Exception e)
+    {
+        AnsiConsole.MarkupLine(":skull: [red]Transforming input data failed:[/]");
+        if(_verbose)
+        {
+            AnsiConsole.WriteException(e);
+        }
+        else
+        {
+            AnsiConsole.Foreground = Color.Red;
+            AnsiConsole.WriteLine(Markup.Escape(e.Message));
+            AnsiConsole.ResetColors();
+        }
+    }
 
     void EnsurePreconditionsAreMet()
     {
@@ -107,12 +146,8 @@ sealed class CsvTransformer(TransformerInputs inputs)
         return Path.Join(_csvFile.Directory!.FullName, filename);
     }
 
-    static void PerformTransformationsOn(CsvDocument csvDoc)
-    {
-        csvDoc.GetEntriesInColumn("Amount (EUR)").Apply(ReplaceDotWithComma);
-        csvDoc.GetEntriesInColumn("Original Amount").Apply(ReplaceDotWithComma);
-    }
+    void PerformTransformationsOn(CsvDocument csvDoc) => DocTransformers
+        .Apply(docTrans => docTrans.Transform(csvDoc));
 
-    static void ReplaceDotWithComma(CsvEntry entry) =>
-        entry.Value = entry.Value.Replace('.', ',');
+    static void PrintBanner() => AnsiConsole.MarkupLine($"[yellow]{Banner}[/]");
 }

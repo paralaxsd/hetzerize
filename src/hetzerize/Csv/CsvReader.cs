@@ -1,4 +1,6 @@
-﻿namespace Hetzerize.Csv;
+﻿using Hetzerize.Csv.Models;
+
+namespace Hetzerize.Csv;
 
 sealed class CsvReader(string delimiter = ";")
 {
@@ -21,22 +23,45 @@ sealed class CsvReader(string delimiter = ";")
 
         var csvLines = lines.Select(CreateCsvLineFrom).ToArray();
         var csvHeader = csvLines[0];
+        ValidateIntegrityOf(csvLines, csvHeader);
+
+        var columns = GetColumnsFrom(csvLines);
+        return new(columns);
+    }
+    
+    CsvLine CreateCsvLineFrom(string line, int lineIdx)
+    {
+        var entries = line.Split(_delimiter);
+        var csvEntries = entries.Select(val => new CsvEntry(val));
+
+        return new(csvEntries.ToArray());
+    }
+    
+    static void ValidateIntegrityOf(CsvLine[] csvLines, CsvLine csvHeader)
+    {
         var numColumns = csvHeader.NumEntries;
 
         if (csvLines.Any(line => line.NumEntries != numColumns))
         {
-            throw new InvalidDataException("Invalid data: the given CSV data has varying entries per line.");
+            throw new InvalidDataException(
+                "Invalid data: the given CSV data has varying entries per line.");
         }
-
-        return new(csvHeader, csvLines[1..]);
     }
 
-    CsvLine CreateCsvLineFrom(string line, int lineIdx)
+    static IEnumerable<CsvColumn> GetColumnsFrom(CsvLine[] lines)
     {
-        var entries = line.Split(_delimiter);
-        var csvEntries = entries.Select((val, idx) => new CsvEntry(idx, val));
+        var header = lines[0];
+        var contentLines = lines.Skip(1).ToArray();
+        var numColumns = header.NumEntries;
 
-        return new(lineIdx, csvEntries.ToArray());
+        foreach (var colIdx in Enumerable.Range(0, numColumns))
+        {
+            var colName = header.GetElementAt(colIdx).Value;
+            var entries = contentLines
+                .Select(l => l.GetElementAt(colIdx).Value);
+
+            yield return new(colName, entries);
+        }
     }
 
     static List<string> ReadLinesFrom(StreamReader reader)

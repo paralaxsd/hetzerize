@@ -1,4 +1,7 @@
-﻿namespace Hetzerize.Csv;
+﻿using Hetzerize.Csv.Models;
+using Hetzerize.Extensions;
+
+namespace Hetzerize.Csv;
 
 sealed class CsvWriter(string delimiter)
 {

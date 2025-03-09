@@ -1,4 +1,4 @@
-﻿namespace Hetzerize;
+﻿namespace Hetzerize.Extensions;
 
 static class EnumerableExtensions
 {
